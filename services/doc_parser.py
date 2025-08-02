@@ -5,12 +5,22 @@ from utils.chunker import chunk_text_by_tokens
 
 def process_document(blob_url: str):
     resp = requests.get(blob_url)
-    pdf = fitz.open(stream=resp.content, filetype="pdf")
+    resp.raise_for_status()
+    try:
+        pdf = fitz.open(stream=resp.content, filetype="pdf")
+    except Exception as e:
+        raise RuntimeError(f"Could not open PDF: {e}")
     doc_text = ""
     for page in pdf:
-        doc_text += page.get_text()
+        try:
+            doc_text += page.get_text()
+        except Exception:
+            continue # proceed even if one page fails
     meta = {"num_pages": pdf.page_count}
+    if not doc_text.strip():
+        raise ValueError("No extractable text found in PDF.")
     return doc_text, meta
+
 
 def split_into_clauses(text: str):
     """
@@ -18,7 +28,10 @@ def split_into_clauses(text: str):
     Returns list of {"section": str, "text": str}.
     """
     sections = re.split(r'(Section\s+\d+[\.\d]*\s*[\w\s]*)', text)
-    return [{"section": s.strip(), "text": t.strip()} for s, t in zip(sections[1::2], sections[2::2])]
+    clauses =  [{"section": s.strip(), "text": t.strip()} for s, t in zip(sections[1::2], sections[2::2])]
+    if not clauses:
+        return [{"section": "Entire Document", "text": text.strip()}]
+    return clauses
 
 def split_clauses_into_token_chunks(clauses: list[dict], max_tokens: int = 2048):
     """

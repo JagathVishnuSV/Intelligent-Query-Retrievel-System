@@ -69,7 +69,7 @@ def run_query(request: QueryRequest):
     answers = []
     for question in request.questions:
         query_vec = embeddings.embed_query(question)
-        top_k = 10
+        top_k = 5
         top_chunks = retriever.search(query_vec, top_k=top_k)
 
         #context = "\n\n".join(f"{c['section']}: {c['text']}" for c in top_chunks)
