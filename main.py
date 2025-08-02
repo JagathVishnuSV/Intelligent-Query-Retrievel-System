@@ -1,12 +1,10 @@
+import uvicorn
 from fastapi import FastAPI
-from dotenv import load_dotenv
-import os
-from api.endpoints import router as api_router
+from api.endpoints import router
 
-load_dotenv()
+app = FastAPI(title="Insurance Policy Q&A API")
 
-if "GOOGLE_API_KEY" not in os.environ:
-    raise EnvironmentError("GOOGLE_API_KEY not set. Please add it in your .env file.")
+app.include_router(router, prefix="/api/v1")
 
-app = FastAPI(title="Gemini-powered Query-Retrieval System")
-app.include_router(api_router, prefix="/api/v1")
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
