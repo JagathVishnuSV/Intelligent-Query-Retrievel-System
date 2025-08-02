@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+requests
+faiss-cpu
+python-dotenv
+langchain
+langchain-google-genai
+PyMuPDF
+pdfplumber
+pytesseract
