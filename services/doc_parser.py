@@ -2,7 +2,6 @@ import requests
 import fitz  # PyMuPDF
 import re
 import asyncio
-
 import tiktoken
 
 async def process_document(blob_url: str) -> tuple[str, dict]:
@@ -19,17 +18,47 @@ async def process_document(blob_url: str) -> tuple[str, dict]:
 
 def split_into_clauses(text: str) -> list[dict]:
     """
-    Split text by legal style headings (e.g., "Section 1", "Section 1.1 ...").
+    Tries to split text by legal-style headings like "Section 1", "Section 1.1 ...".
+    Falls back to paragraph-level splitting if no such headers are found.
     Returns list of {"section": str, "text": str}.
     """
-    sections = re.split(r'(Section\s+\d+[\.\d]*\s*[\w\s]*)', text)
-    clauses = [{"section": s.strip(), "text": t.strip()} for s, t in zip(sections[1::2], sections[2::2])]
-    if not clauses:
-        # Fallback if no section headers found
+    # Try multiple patterns for section headers
+    patterns = [
+        r'(Section\s+\d+[\.\d]*\s*[\w\s]*)',
+        r'(Clause\s+\d+[\.\d]*\s*[\w\s]*)',
+        r'([A-Z][\w\s]*:\s*)',  # Capitalized headers followed by colon
+        r'(\d+\.\s*[A-Z][\w\s]*)'  # Numbered sections
+    ]
+    
+    for pattern in patterns:
+        sections = re.split(pattern, text)
+        if len(sections) > 3:  # Found meaningful sections
+            clauses = [{"section": s.strip(), "text": t.strip()} for s, t in zip(sections[1::2], sections[2::2])]
+            if clauses:
+                filtered_clauses = [c for c in clauses if c["text"]]  # filter empty
+                if filtered_clauses:
+                    return filtered_clauses
+    
+    # 🔁 Fallback to paragraph-level chunks if no sections found
+    paragraphs = [p.strip() for p in text.split("\n\n") if len(p.strip()) > 50]
+    fallback_clauses = [{"section": f"Paragraph {i+1}", "text": p} for i, p in enumerate(paragraphs)]
+    
+    # Further fallback to sentence-level if paragraphs are too long
+    if not fallback_clauses or any(len(c["text"]) > 2000 for c in fallback_clauses):
+        sentences = re.split(r'[.!?]+', text)
+        sentences = [s.strip() for s in sentences if len(s.strip()) > 20]
+        fallback_clauses = [{"section": f"Sentence {i+1}", "text": s} for i, s in enumerate(sentences) if len(s) > 20]
+    
+    # Final fallback if even that fails
+    if not fallback_clauses:
         return [{"section": "Entire Document", "text": text.strip()}]
-    return clauses
+    
+    return fallback_clauses
 
 def chunk_text_by_tokens(text: str, max_tokens: int = 2048, overlap: int = 50) -> list[str]:
+    """
+    Splits text into token-based chunks with optional overlap.
+    """
     encoding = tiktoken.get_encoding("cl100k_base")
     tokens = encoding.encode(text)
     chunks = []

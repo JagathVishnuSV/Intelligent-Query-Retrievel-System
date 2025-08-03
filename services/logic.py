@@ -1,11 +1,103 @@
-def answer_question(user_query, top_clauses):
-    context = "\n\n".join(f"{c['section']}: {c['text']}" for c in top_clauses)
-    # Call LLM with `context` and `user_query` (example with OpenAI GPT-4 API; or local model)
-    prompt = f"Given the following policy clauses:\n{context}\n\nAnswer the user's question: {user_query}\nExplain the rationale."
-    import openai
-    out = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[{"role":"user","content":prompt}],
-        temperature=0.1
+from services.embeddings import embed_text_async
+from services.vector_store import QdrantIndexer, QdrantRetriever, doc_hash
+from services.bm25_retriever import BM25Retriever
+from services.reranker import rerank_crossencoder, rerank_with_llm
+from services.llm_service import gemini_invoke_with_retry
+from services.explain import make_explanation
+from utils.chunker import chunk_text_by_tokens
+from typing import List
+from collections import defaultdict
+
+bm25_retriever = BM25Retriever()
+
+def compose_prompt_multi(questions: List[str], contexts: List[List[str]]) -> str:
+    prompt = (
+        "You are a helpful assistant answering questions based strictly on the given excerpts from an insurance policy document.\n"
+        "If the answer is clearly found, provide it concisely.\n"
+        "If the answer is not present, say exactly: 'Not mentioned in the policy document.'\n\n"
     )
-    return out["choices"][0]["message"]["content"], "Rationale as given by LLM"
+    for i, (q, ctx_chunks) in enumerate(zip(questions, contexts), start=1):
+        combined_context = "\n\n".join(ctx_chunks)
+        prompt += (
+            f"Question {i}: {q}\nContext:\n{combined_context}\n"
+            "Answer:\n"
+        )
+    prompt += "\nProvide each answer starting with 'Answer 1:', 'Answer 2:', etc."
+    return prompt
+
+async def answer_query(query: str, clauses: list[dict], document_url: str, top_k=5, rerank_llm=True):
+    doc_id = doc_hash(document_url)
+
+    chunked_clauses = []
+    for clause in clauses:
+        chunks = chunk_text_by_tokens(clause["text"], max_tokens=1000, overlap=100)
+        for idx, chunk in enumerate(chunks):
+            chunked_clauses.append({
+                "section": f"{clause['section']} (Part {idx+1})" if len(chunks) > 1 else clause['section'],
+                "text": chunk
+            })
+
+    chunk_vectors = [await embed_text_async(c["text"]) for c in chunked_clauses]
+
+    indexer = QdrantIndexer(doc_id)
+    await indexer.upsert_vectors(chunk_vectors, chunked_clauses)
+
+    retriever = QdrantRetriever(doc_id)
+    query_vec = await embed_text_async(query)
+    qdrant_hits = await retriever.search(query_vec, top_k=top_k*2)
+    qdrant_clauses = [r.payload for r in qdrant_hits]
+
+    bm25_retriever.index(chunked_clauses)
+    bm25_clauses = bm25_retriever.search(query, top_k=top_k*2)
+
+    # Hybrid scoring approach
+    combined_scores = defaultdict(float)
+    qdrant_dict = {hit.payload["text"]: hit for hit in qdrant_hits}
+
+    # Score normalization and combination
+    for i, clause in enumerate(qdrant_clauses):
+        combined_scores[clause["text"]] += (len(qdrant_clauses) - i) * 0.6  # Weighted score
+
+    for i, clause in enumerate(bm25_clauses):
+        combined_scores[clause["text"]] += (len(bm25_clauses) - i) * 0.4  # Weighted score
+
+    # Sort by combined scores
+    sorted_clauses = sorted(
+        [{"text": text, "section": clause.get("section", "Unknown")} 
+         for text, clause in {c["text"]: c for c in (qdrant_clauses + bm25_clauses)}.items()],
+        key=lambda x: combined_scores[x["text"]], 
+        reverse=True
+    )
+
+    all_candidates = sorted_clauses[:top_k*2]
+
+    if rerank_llm:
+        reranked = await rerank_with_llm(query, all_candidates)
+    else:
+        reranked = rerank_crossencoder(query, all_candidates)
+
+    top_clauses = reranked[:5]
+    if not top_clauses:
+        # Fallback mechanism
+        top_clauses = all_candidates[:5]
+        if not top_clauses:
+            return make_explanation("No relevant information was found in the policy document.", [], "")
+
+    rationale = "\n".join([f"{c['section']}: {c['text']}" for c in top_clauses])
+    prompt = f"""You are an expert insurance policy analyst. Answer the following question using ONLY the information provided in the clauses below.
+
+Question: {query}
+
+Relevant Policy Clauses:
+{rationale}
+
+Instructions:
+1. If the answer is clearly found in the clauses, provide it concisely
+2. If the information is partially available, state what is available
+3. If the answer is not present at all, say exactly: "Not mentioned in the policy document."
+4. Do not make up information not in the clauses
+
+Answer:"""
+
+    answer = await gemini_invoke_with_retry(prompt)
+    return make_explanation(answer.strip(), top_clauses, rationale)
