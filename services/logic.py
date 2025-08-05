@@ -1,9 +1,9 @@
 from services.embeddings import embed_text_async
 from services.vector_store import QdrantIndexer, QdrantRetriever, doc_hash
 from services.bm25_retriever import BM25Retriever
-from services.reranker import rerank_crossencoder, rerank_with_llm
 from services.llm_service import gemini_invoke_with_retry
 from services.explain import make_explanation
+from services.reranker import rerank_by_cosine_similarity
 from utils.chunker import chunk_text_by_tokens
 from typing import List
 from collections import defaultdict
@@ -51,35 +51,27 @@ async def answer_query(query: str, clauses: list[dict], document_url: str, top_k
     bm25_clauses = bm25_retriever.search(query, top_k=top_k*2)
 
     # Hybrid scoring approach
-    combined_scores = defaultdict(float)
-    qdrant_dict = {hit.payload["text"]: hit for hit in qdrant_hits}
+    #combined_scores = defaultdict(float)
+    #qdrant_dict = {hit.payload["text"]: hit for hit in qdrant_hits}
 
-    # Score normalization and combination
-    for i, clause in enumerate(qdrant_clauses):
-        combined_scores[clause["text"]] += (len(qdrant_clauses) - i) * 0.6  # Weighted score
+    scored = {}
+    for clause in qdrant_clauses:
+        scored[clause["text"]] = {"score": 0.6, "data": clause}
+    for clause in bm25_clauses:
+        if clause["text"] in scored:
+            scored[clause["text"]]["score"] += 0.4
+        else:
+            scored[clause["text"]] = {"score": 0.4, "data": clause}
 
-    for i, clause in enumerate(bm25_clauses):
-        combined_scores[clause["text"]] += (len(bm25_clauses) - i) * 0.4  # Weighted score
+    all_candidates = sorted(scored.values(), key=lambda x: -x["score"])
+    all_candidates = [x["data"] for x in all_candidates]
 
-    # Sort by combined scores
-    sorted_clauses = sorted(
-        [{"text": text, "section": clause.get("section", "Unknown")} 
-         for text, clause in {c["text"]: c for c in (qdrant_clauses + bm25_clauses)}.items()],
-        key=lambda x: combined_scores[x["text"]], 
-        reverse=True
-    )
+    reranked = await rerank_by_cosine_similarity(query, all_candidates)
 
-    all_candidates = sorted_clauses[:top_k*2]
-
-    if rerank_llm:
-        reranked = await rerank_with_llm(query, all_candidates)
-    else:
-        reranked = rerank_crossencoder(query, all_candidates)
-
-    top_clauses = reranked[:5]
+    top_clauses = reranked[:10]
     if not top_clauses:
         # Fallback mechanism
-        top_clauses = all_candidates[:5]
+        top_clauses = all_candidates[:10]
         if not top_clauses:
             return make_explanation("No relevant information was found in the policy document.", [], "")
 

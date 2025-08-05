@@ -1,22 +1,27 @@
-# services/bm25_retriever.py
-from rank_bm25 import BM25Okapi
 from typing import List
+import numpy as np
+from rank_bm25 import BM25Okapi
 
 class BM25Retriever:
     def __init__(self):
+        self.clauses: List[dict] = []
+        self.tokenized_corpus: List[List[str]] = []
         self.bm25 = None
-        self.corpus = []
-        self.clauses = []
 
     def index(self, clauses: List[dict]):
         self.clauses = clauses
-        self.corpus = [clause["text"].lower().split() for clause in clauses]
-        self.bm25 = BM25Okapi(self.corpus)
+        self.tokenized_corpus = [self.tokenize(clause["text"]) for clause in clauses]
+        self.bm25 = BM25Okapi(self.tokenized_corpus)
 
-    def search(self, query: str, top_k=5) -> List[dict]:
+    def search(self, query: str, top_k: int = 5) -> List[dict]:
         if not self.bm25:
             return []
-        query_tokens = query.lower().split()
-        scores = self.bm25.get_scores(query_tokens)
-        top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
-        return [self.clauses[i] for i in top_indices]
+
+        tokenized_query = self.tokenize(query)
+        scores = self.bm25.get_scores(tokenized_query)
+        top_indices = np.argsort(scores)[::-1][:top_k]
+        return [self.clauses[i] for i in top_indices if scores[i] > 0.0]
+
+    @staticmethod
+    def tokenize(text: str) -> List[str]:
+        return text.lower().split()

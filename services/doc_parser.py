@@ -55,7 +55,7 @@ def split_into_clauses(text: str) -> list[dict]:
     
     return fallback_clauses
 
-def chunk_text_by_tokens(text: str, max_tokens: int = 2048, overlap: int = 50) -> list[str]:
+def chunk_text_by_tokens(text: str, max_tokens: int = 1000, overlap: int = 100) -> list[str]:
     """
     Splits text into token-based chunks with optional overlap.
     """

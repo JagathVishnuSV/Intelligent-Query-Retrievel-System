@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel
 from typing import List, Optional
+import asyncio
+
 from services import doc_parser
 from services.logic import answer_query
 
@@ -35,13 +37,13 @@ async def run_hackrx(request: QueryRequest, token: str = Depends(verify_token)):
     if not clauses:
         raise HTTPException(status_code=400, detail="No clauses found in document.")
 
-    # Step 3: Answer each question individually
-    answers = []
-    for question in request.questions:
-        try:
-            result = await answer_query(question, clauses, request.documents)
-            answers.append(result.answer.strip())
-        except Exception as e:
-            answers.append("Error: Failed to retrieve answer.")
-    
+    # Step 3: Answer each question concurrently using asyncio.gather
+    try:
+        results = await asyncio.gather(*[
+            answer_query(q, clauses, request.documents) for q in request.questions
+        ])
+        answers = [r.answer.strip() for r in results]
+    except Exception:
+        answers = ["Error: Failed to retrieve answer."] * len(request.questions)
+
     return QueryResponse(answers=answers)
