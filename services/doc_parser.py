@@ -4,17 +4,30 @@ import re
 import asyncio
 import tiktoken
 
-async def process_document(blob_url: str) -> tuple[str, dict]:
+async def process_document_from_url(blob_url: str) -> tuple[str, dict]:
     """Download PDF from URL and extract full text asynchronously."""
-    loop = asyncio.get_event_loop()
-    resp = await loop.run_in_executor(None, lambda: requests.get(blob_url))
-    resp.raise_for_status()
-    pdf = fitz.open(stream=resp.content, filetype="pdf")
-    doc_text = ""
-    for page in pdf:
-        doc_text += page.get_text()
-    meta = {"num_pages": pdf.page_count}
-    return doc_text, meta
+    try:
+        loop = asyncio.get_event_loop()
+        resp = await loop.run_in_executor(None, lambda: requests.get(blob_url))
+        resp.raise_for_status()
+        content = resp.content
+        return await process_document_from_content(content)
+    except requests.exceptions.RequestException as e:
+        print(f"Error downloading document from {blob_url}: {e}")
+        return "", {}
+
+async def process_document_from_content(content: bytes) -> tuple[str, dict]:
+    """Extract full text from PDF content."""
+    try:
+        pdf = fitz.open(stream=content, filetype="pdf")
+        doc_text = ""
+        for page in pdf:
+            doc_text += page.get_text()
+        meta = {"num_pages": pdf.page_count}
+        return doc_text, meta
+    except Exception as e:
+        print(f"Error processing PDF content: {e}")
+        return "", {}
 
 def split_into_clauses(text: str) -> list[dict]:
     """

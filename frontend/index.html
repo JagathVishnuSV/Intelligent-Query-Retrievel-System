@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligent Query Retrieval System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Intelligent Query Retrieval System</h1>
+            <p>Your smart solution for document analysis</p>
+        </header>
+        <main>
+            <div class="upload-section">
+                <h2>Upload Your Document</h2>
+                <p>Upload a file or provide a URL to a document.</p>
+                <div class="upload-options">
+                    <input type="file" id="file-upload" accept=".pdf">
+                    <label for="file-upload" class="custom-file-upload">Choose File</label>
+                    <span id="file-name">No file chosen</span>
+                </div>
+                <div class="url-input">
+                    <input type="text" id="url-input" placeholder="Or enter a document URL">
+                </div>
+            </div>
+            <div class="query-section">
+                <h2>Ask a Question</h2>
+                <p>Enter your questions below (one per line).</p>
+                <textarea id="questions-input" placeholder="e.g., What are the key findings of the report?"></textarea>
+                <button id="submit-btn">Get Answers</button>
+            </div>
+            <div class="results-section">
+                <h2>Results</h2>
+                <div id="results-container">
+                    <p class="no-results">Your results will appear here.</p>
+                </div>
+            </div>
+        </main>
+        <footer>
+            <p>&copy; 2024 Intelligent Query Retrieval System. All rights reserved.</p>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

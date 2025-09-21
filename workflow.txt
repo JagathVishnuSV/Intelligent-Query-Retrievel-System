@@ -7,7 +7,7 @@ curl.exe -X POST "http://127.0.0.1:8000/api/v1/hackrx/run" -H "Content-Type: app
 curl -X POST "http://127.0.0.1:8000/api/v1/hackrx/run" -H "Content-Type: application/json" -H "Accept: application/json" -H "Authorization: Bearer 714c3fdb7fd84d510e3b5d4a0e21cc85a9a323700c63fad79fcd234ea93b99d5" -d "{\"documents\": \"https://hackrx.blob.core.windows.net/assets/policy.pdf?sv=2023-01-03^&st=2025-07-04T09%3A11%3A24Z^&se=2027-07-05T09%3A11%3A00Z^&sr=b^&sp=r^&sig=N4a9OU0w0QXO6AOIBiu4bpl7AXvEZogeT%2FjUHNO7HzQ%3D\", \"questions\": [\"Does this policy cover maternity expenses, and what are the conditions?\"]}"
 
 #curl -X POST "http://127.0.0.1:8000/api/v1/webhook/run_hackrx" -H "Content-Type: application/json" -H "Accept: application/json" -H "Authorization: Bearer 714c3fdb7fd84d510e3b5d4a0e21cc85a9a323700c63fad79fcd234ea93b99d5" -d "{\"documents\": \"https://hackrx.blob.core.windows.net/assets/policy.pdf?sv=2023-01-03^&st=2025-07-04T09%3A11%3A24Z^&se=2027-07-05T09%3A11%3A00Z^&sr=b^&sp=r^&sig=N4a9OU0w0QXO6AOIBiu4bpl7AXvEZogeT%2FjUHNO7HzQ%3D\", \"questions\": [\"Does this policy cover maternity expenses, and what are the conditions?\"]}"
-#curl -X POST "http://127.0.0.1:8000/api/v1/hackrx/run" -H "Content-Type: application/json" -H "Accept: application/json" -H "Authorization: Bearer 714c3fdb7fd84d510e3b5d4a0e21cc85a9a323700c63fad79fcd234ea93b99d5" -d "{\"documents\": \"https://hackrx.blob.core.windows.net/assets/policy.pdf?sv=2023-01-03^&st=2025-07-04T09%3A11%3A24Z^&se=2027-07-05T09%3A11%3A00Z^&sr=b^&sp=r^&sig=N4a9OU0w0QXO6AOIBiu4bpl7AXvEZogeT%2FjUHNO7HzQ%3D\", \"questions\": [\"Does this policy cover maternity expenses, and what are the conditions?\"]}"
+curl -X POST "https://intelligent-query-retrival.onrender.com/api/v1/hackrx/run" -H "Content-Type: application/json" -H "Accept: application/json" -H "Authorization: Bearer 714c3fdb7fd84d510e3b5d4a0e21cc85a9a323700c63fad79fcd234ea93b99d5" -d "{\"documents\": \"https://hackrx.blob.core.windows.net/assets/policy.pdf?sv=2023-01-03^&st=2025-07-04T09%3A11%3A24Z^&se=2027-07-05T09%3A11%3A00Z^&sr=b^&sp=r^&sig=N4a9OU0w0QXO6AOIBiu4bpl7AXvEZogeT%2FjUHNO7HzQ%3D\", \"questions\": [\"Does this policy cover maternity expenses, and what are the conditions?\"]}"
 
 #http://127.0.0.1:8000/api/v1/hackrx/run
 
@@ -27,3 +27,15 @@ curl -X POST "http://127.0.0.1:8000/api/v1/hackrx/run" -H "Content-Type: applica
 
 curl -X POST "https://ap-achieved-design-till.trycloudflare.com/api/v1/hackrx/run" -H "Content-Type: application/json" -H "Accept: application/json" -H "Authorization: Bearer 714c3fdb7fd84d510e3b5d4a0e21cc85a9a323700c63fad79fcd234ea93b99d5" -d "{\"documents\": \"https://hackrx.blob.core.windows.net/assets/policy.pdf?sv=2023-01-03^&st=2025-07-04T09%3A11%3A24Z^&se=2027-07-05T09%3A11%3A00Z^&sr=b^&sp=r^&sig=N4a9OU0w0QXO6AOIBiu4bpl7AXvEZogeT%2FjUHNO7HzQ%3D\", \"questions\": [\"What is the grace period for premium payment under the National Parivar Mediclaim Plus Policy?\", \"What is the waiting period for pre-existing diseases (PED) to be covered?\", \"Does this policy cover maternity expenses, and what are the conditions?\", \"What is the waiting period for cataract surgery?\", \"Are the medical expenses for an organ donor covered under this policy?\", \"What is the No Claim Discount (NCD) offered in this policy?\", \"Is there a benefit for preventive health check-ups?\", \"How does the policy define a 'Hospital'?\", \"What is the extent of coverage for AYUSH treatments?\", \"Are there any sub-limits on room rent and ICU charges for Plan A?\"]}"
 
+UPDATED MULTIPART FORM DATA - FOR MULTIPLE FILE TYPES - TESTINGS
+
+curl.exe -X POST "http://127.0.0.1:8000/api/v1/hackrx/run" `
+  -H "Authorization: Bearer 714c3fdb7fd84d510e3b5d4a0e21cc85a9a323700c63fad79fcd234ea93b99d5" `
+  -F "document_url=https://ypfsresourcelibrary.blob.core.windows.net/fcic/fcic-reports/fcic_final_report_full.pdf" `
+  -F "questions=What are the key findings of the FCIC final report?"
+
+
+curl.exe -X POST "http://127.0.0.1:8000/api/v1/hackrx/run" `
+  -H "Authorization: Bearer 714c3fdb7fd84d510e3b5d4a0e21cc85a9a323700c63fad79fcd234ea93b99d5" `
+  -F "document_url=https://iea.blob.core.windows.net/assets/deebef5d-0c34-4539-9d0c-10b13d840027/NetZeroby2050-ARoadmapfortheGlobalEnergySector_CORR.pdf" `
+  -F "questions=What are the key milestones outlined for achieving net zero emissions by 2050?"
